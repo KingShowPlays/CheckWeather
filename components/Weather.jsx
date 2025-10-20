@@ -16,24 +16,30 @@ import { useStateContext } from '@/context/requestContext';
 const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
 const getWeatherIcon = (code) => {
-    if (code >= 95) return Lightning; // thunderstorm
-    if (code >= 80) return Rain;      // heavy rain
-    if (code >= 70) return Snow;      // snow
-    if (code >= 60) return Rain;      // rain
-    if (code >= 45) return Partly;    // cloudy
-    if (code >= 1) return Sun;        // sunny/partly
+    if (code === undefined || code === null) return Sun;
+
+    // Open-Meteo WMO Weather Interpretation Codes
+    // https://open-meteo.com/en/docs
+    if ([0, 1].includes(code)) return Sun; // clear
+    if ([2, 3].includes(code)) return Partly; // partly cloudy
+    if ([45, 48].includes(code)) return Partly; // fog
+    if ([51, 53, 55, 56, 57].includes(code)) return Rain; // drizzle
+    if ([61, 63, 65, 66, 67].includes(code)) return Rain; // rain
+    if ([71, 73, 75, 77, 85, 86].includes(code)) return Snow; // snow
+    if ([80, 81, 82].includes(code)) return Rain; // rain showers
+    if ([95, 96, 99].includes(code)) return Lightning; // thunderstorm
     return Sun;
 };
 
-const Weather = () => {
+
+const Weather = ({ city }) => {
     const [day, setCurrentDay] = useState('monday');
     const [open, setOpen] = useState(false);
     const [weather, setWeather] = useState(null);
-    const [city, setCity] = useState('Berlin');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    const { currentDeg, setCurrentDeg, currentWind, setWind, currentPrec, setCurrentPrec } = useStateContext();
+    const { currentDeg, currentWind, currentPrec } = useStateContext();
 
     const toFah = (x) => (x * 9) / 5 + 32;
     const toMph = (x) => x * 1.609;
@@ -41,8 +47,10 @@ const Weather = () => {
 
     const openDays = () => setOpen((p) => !p);
 
-    // 🧭 fetch weather
+    // 🧭 fetch weather data
     useEffect(() => {
+        if (!city) return;
+
         const fetchWeather = async () => {
             setLoading(true);
             setError('');
@@ -94,6 +102,7 @@ const Weather = () => {
             </section>
         );
     }
+    console.log("hey", weather?.daily?.weathercode);
 
     return (
         <section id="weather" className="container flex max-lg:flex-col !mt-8 gap-4 text-white">
@@ -148,16 +157,20 @@ const Weather = () => {
                     <div className="flex flex-col bg-Neutral-800 p-2 rounded-lg">
                         <p className="text-Neutral-300">Wind</p>
                         <p className="flex text-2xl">
-                            {Math.round(weather?.hourly?.wind_speed_10m?.[dayIndex * 24] ?? 14)}
-                            &nbsp;<span>{currentWind === 'km/h' ? 'km/h' : 'mph'}</span>
+                            {Math.round(currentWind === 'km/h'
+                                ? weather?.hourly?.wind_speed_10m?.[dayIndex * 24] ?? 14
+                                : toMph(weather?.hourly?.wind_speed_10m?.[dayIndex * 24] ?? 14))}
+                            &nbsp;<span>{currentWind}</span>
                         </p>
                     </div>
 
                     <div className="flex flex-col bg-Neutral-800 p-2 rounded-lg">
                         <p className="text-Neutral-300">Precipitation</p>
                         <p className="flex text-2xl">
-                            {Math.round(weather?.daily?.precipitation_sum?.[dayIndex] ?? 0)}
-                            &nbsp;<span>{currentPrec === 'mm' ? 'mm' : 'in'}</span>
+                            {Math.round(currentPrec === 'mm'
+                                ? weather?.daily?.precipitation_sum?.[dayIndex] ?? 0
+                                : toIn(weather?.daily?.precipitation_sum?.[dayIndex] ?? 0))}
+                            &nbsp;<span>{currentPrec}</span>
                         </p>
                     </div>
                 </div>
